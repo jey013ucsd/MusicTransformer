@@ -1,1 +1,1 @@
-# MusicTransformer
+# Music Transformer ECE176
