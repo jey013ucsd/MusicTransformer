@@ -1,7 +1,6 @@
 import urllib.request
 import tarfile
 import os
-import mido
 import glob
 import pickle
 import numpy as np

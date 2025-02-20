@@ -90,10 +90,14 @@ def tokenize_and_save_dataset(raw_midi_path, tokenized_output_path):
         midi_path = os.path.join(raw_midi_path, midi_file)
         tokenized_sequence = tokenize_single_midi(midi_path)
 
-        # Save the tokenized sequence
-        save_path = os.path.join(tokenized_output_path, f"{midi_file}.pkl")
-        with open(save_path, "wb") as f:
-            pickle.dump(tokenized_sequence, f)
+        if len(tokenized_sequence) == 0:
+            print(f"Deleting empty sequence file: {midi_path}")
+            os.remove(midi_path)
+        else:
+            # Save the tokenized sequence
+            save_path = os.path.join(tokenized_output_path, f"{midi_file}.pkl")
+            with open(save_path, "wb") as f:
+                pickle.dump(tokenized_sequence, f)
 
     print(f"Tokenized dataset saved in {tokenized_output_path}")
 

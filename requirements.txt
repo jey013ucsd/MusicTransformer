@@ -1,0 +1,12 @@
+numpy
+torch
+torchvision
+torchaudio
+mido
+tqdm
+matplotlib
+scikit-image
+skimage.feature
+json5
+shutil
+glob2
