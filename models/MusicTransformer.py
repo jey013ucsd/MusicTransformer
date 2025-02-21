@@ -54,7 +54,7 @@ class RelativeAttentionHead(nn.Module):
 class MultiHeadRelativeAttention(nn.Module):
     ''' multiple relative self attention heads'''
     
-    def __init__(self, n_head, n_embd, dropout, max_len, mask=False):
+    def __init__(self, n_head, n_embd, dropout, max_len, mask=True):
         super().__init__()
         head_size = n_embd // n_head
         self.heads = nn.ModuleList([RelativeAttentionHead(n_embd, dropout, max_len, head_size, mask) for _ in range(n_head)])
@@ -70,7 +70,7 @@ class MultiHeadRelativeAttention(nn.Module):
         
 class DecoderBlock(nn.Module):
     ''' Decoder block using relative attention '''
-    def __init__(self, n_embd, n_head, dropout, max_len, mask=False):
+    def __init__(self, n_embd, n_head, dropout, max_len, mask=True):
         super().__init__()
         self.ln1 = nn.LayerNorm(n_embd)
         self.attn = MultiHeadRelativeAttention(n_head, n_embd, dropout, max_len, mask)

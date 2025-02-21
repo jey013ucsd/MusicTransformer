@@ -34,19 +34,18 @@ class MidiDataset(Dataset):
         
         sequence_length = len(token_sequence)
         desired_length = self.max_seq_length + 1
-        
 
         if sequence_length < desired_length:
             token_sequence = token_sequence + [self.pad_token_id] * (desired_length - sequence_length)
-        else:
-            start_idx = random.randint(0, max(1, sequence_length - desired_length))
+        elif sequence_length > desired_length:
+            start_idx = random.randint(0, sequence_length - desired_length)
             token_sequence = token_sequence[start_idx: start_idx + desired_length]
-        
+
         # Create input and target pairs
         x = torch.tensor(token_sequence[:-1], dtype=torch.long)
         y = torch.tensor(token_sequence[1:], dtype=torch.long)
         return x, y
-
+    
 
 def collate_batch(batch):
     """
@@ -54,6 +53,6 @@ def collate_batch(batch):
     
     """
     xs, ys = zip(*batch)
-    padded_xs = pad_sequence(xs, batch_first=True, padding_value=0)
-    padded_ys = pad_sequence(ys, batch_first=True, padding_value=0)
+    padded_xs = pad_sequence(xs, batch_first=True, padding_value=388)
+    padded_ys = pad_sequence(ys, batch_first=True, padding_value=388)
     return padded_xs, padded_ys
