@@ -75,10 +75,7 @@ def tokenize_single_midi(midi_path):
 def tokenize_and_save_dataset(raw_midi_path, tokenized_output_path):
     """
     Processes all MIDI files in a directory, tokenizes them, and saves them as pickled sequences.
-    
-    Args:
-        raw_midi_path (str): Path to the directory containing raw MIDI files.
-        tokenized_output_path (str): Path where tokenized sequences will be saved.
+
     """
     os.makedirs(tokenized_output_path, exist_ok=True)
     
