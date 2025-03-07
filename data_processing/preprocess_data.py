@@ -8,26 +8,28 @@ from tqdm import tqdm
 import json
 import pickle
 from concurrent.futures import ProcessPoolExecutor, TimeoutError
+from tokenize_midi import tokenize_basic_vocab
 
 ###### CLEAN DATA, SPLIT INTO TEST, TRAIN, AND VAL, THEN TOKENIZE INTO IDS #########
 
-TRAIN_RATIO = 0.80
-VAL_RATIO   = 0.10
-TEST_RATIO  = 0.10
-SAMPLE_SIZE = 178561
-VOCAB_PATH  = "datasets/vocab/basic_vocab.json"
-
-timeout_count = 0
-# Directories
 source_dir = "datasets/raw_midi/lmd_full_direct"
 
-# Final tokenized data directories:
 tokenized_train_path = "datasets/tokenized/train"
 tokenized_val_path   = "datasets/tokenized/val"
 tokenized_test_path  = "datasets/tokenized/test"
 
 # Temporary directory for tokenized files before splitting:
 temp_tokenized_dir   = "datasets/tokenized/temp"
+
+TRAIN_RATIO = 0.80
+VAL_RATIO   = 0.10
+TEST_RATIO  = 0.10
+SAMPLE_SIZE = 10000
+BATCH_SIZE = 5000
+TOTAL_FILE_COUNT = len(glob.glob(os.path.join(source_dir, "*.mid"))) #178561
+
+VOCAB = "BASIC" #select vocab
+
 
 for d in [
     tokenized_test_path,
@@ -37,77 +39,26 @@ for d in [
 ]:
     os.makedirs(d, exist_ok=True)
 
-# Load vocab
-with open(VOCAB_PATH, "r") as f:
-    vocab = json.load(f)
 
-id_to_token = {v: k for k, v in vocab.items()}
+
+tokenizer = tokenize_basic_vocab
+if VOCAB == "basic":
+    tokenizer = tokenize_basic_vocab
+
 
 executor = ProcessPoolExecutor(max_workers=1)
-
-def tokenize_single_midi(mid):
-    """
-    Tokenize into ids a single MIDI file using defined vocabulary.
-    """
-    track = mid.tracks[0]
-    current_tempo = 500000
-    token_sequence = []
-
-    for msg in track:
-        if msg.type == 'set_tempo':
-            current_tempo = msg.tempo
-            continue
-
-        if msg.time > 0:
-            # convert ticks to seconds
-            delta_seconds = tick2second(msg.time, mid.ticks_per_beat, current_tempo)
-            delta_ms = int(round(delta_seconds * 1000))
-
-            while delta_ms > 0:
-                if delta_ms < 10:
-                    shift = 10
-                else:
-                    shift = min(1000, (delta_ms // 10) * 10)
-                    if shift == 0:
-                        shift = 10
-                token = f"TIME_SHIFT_{shift}ms"
-                token_sequence.append(token)
-                delta_ms -= shift
-
-        if msg.type == 'note_on':
-            if msg.velocity == 0:
-                token_sequence.append(f"NOTE_OFF_{msg.note}")
-            else:
-                token_sequence.append(f"NOTE_ON_{msg.note}")
-                velocity_bin = max(1, min(32, int(round((msg.velocity / 127) * 32))))
-                token_sequence.append(f"VELOCITY_{velocity_bin}")
-        elif msg.type == 'note_off':
-            token_sequence.append(f"NOTE_OFF_{msg.note}")
-
-    token_id_sequence = [vocab[t] for t in token_sequence]
-
-    # Trim leading/trailing time shifts
-    start = 0
-    while start < len(token_id_sequence) and id_to_token[token_id_sequence[start]].startswith("TIME_SHIFT_"):
-        start += 1
-    end = len(token_id_sequence)
-    while end > start and id_to_token[token_id_sequence[end-1]].startswith("TIME_SHIFT_"):
-        end -= 1
-    token_id_sequence = token_id_sequence[start:end]
-    return token_id_sequence
-
 
 def tokenize_with_timeout(midi, timeout=10):
     """
     tokenize midi with timeout
     """
-    future = executor.submit(tokenize_single_midi, midi)
+    future = executor.submit(tokenizer, midi)
     return future.result(timeout=timeout)
 
 
-def get_batch_files(source_dir, batch_size):
+def process_batch(batch_size):
     """
-    Retrieve up to batch_size file paths from source_dir
+    Process up to batch_size MIDI files and save to temp dir.
     """
     batch_files = []
     with os.scandir(source_dir) as it:
@@ -116,21 +67,14 @@ def get_batch_files(source_dir, batch_size):
                 batch_files.append(entry.path)
                 if len(batch_files) >= batch_size:
                     break
-    random.shuffle(batch_files)
-    return batch_files
 
-
-def process_dataset(batch_size):
-    """
-    Process up to batch_size MIDI files and save to temp dir.
-    """
-    batch_files = get_batch_files(source_dir, batch_size)
     print(f"Processing {len(batch_files)} files from '{source_dir}'.")
 
     valid_count = 0
     corrupted_deleted = 0
     multi_track_deleted = 0
     zero_length_sequence_deleted = 0
+    timeout_deleted = 0
 
     pbar = tqdm(total=len(batch_files), desc="Processing MIDI Files")
 
@@ -151,8 +95,8 @@ def process_dataset(batch_size):
             try:
                 token_sequence = tokenize_with_timeout(midi, timeout=5)
             except TimeoutError:
-                print(f"Timeout tokenizing '{file_path}'. Skipping.")
-                timeout_count += 1
+                print(f"Timeout tokenizing '{file_path}'")
+                timeout_deleted += 1
                 try:
                     os.remove(file_path)
                 except Exception as rm_err:
@@ -191,7 +135,8 @@ def process_dataset(batch_size):
 
         pbar.update(1)
     pbar.close()
-    return valid_count
+    
+    return valid_count, corrupted_deleted, multi_track_deleted, zero_length_sequence_deleted, timeout_deleted
 
 def move_files_to_final():
     """
@@ -206,10 +151,7 @@ def move_files_to_final():
     val_count   = int(valid_count * VAL_RATIO)
     test_count  = valid_count - train_count - val_count
 
-    print(f"\nSplitting {valid_count} valid files into:")
-    print(f"  Train: {train_count}")
-    print(f"  Val:   {val_count}")
-    print(f"  Test:  {test_count}")
+    print(f"\nSplitting {valid_count} valid files...")
 
     train_split = all_pkl_files[:train_count]
     val_split   = all_pkl_files[train_count : train_count + val_count]
@@ -225,19 +167,37 @@ def move_files_to_final():
     handle_split(test_split, tokenized_test_path)
 
     print("\n--- SPLIT COMPLETED ---")
-    print(f"Total processed files: {valid_count}")
+
 
 if __name__ == "__main__":
-    total_processed = 0
-    TOTAL_SAMPLE_SIZE = 178561
-    BATCH_SIZE = 5000
+    print(f"Total number of files: {TOTAL_FILE_COUNT}")
+    total_valid_count = 0
+    total_corrupted_deleted = 0
+    total_multi_track_deleted = 0
+    total_zero_length_sequence_deleted = 0
+    total_timeout_deleted = 0
 
-    while total_processed < TOTAL_SAMPLE_SIZE:
-        batch_size = min(BATCH_SIZE, TOTAL_SAMPLE_SIZE - total_processed)
-        processed = process_dataset(batch_size)
-        total_processed += processed
+    while total_valid_count < SAMPLE_SIZE:
+        # process batch
+        batch_size = min(BATCH_SIZE, SAMPLE_SIZE - total_valid_count)
+        valid_count, corrupted_deleted, multi_track_deleted, zero_length_sequence_deleted, timeout_deleted = process_batch(batch_size)
 
-        print(f"\nProcessed {total_processed}/{TOTAL_SAMPLE_SIZE} files so far...\n")
-        move_files_to_final()
+        # update processing stats
+        total_valid_count += valid_count
+        total_corrupted_deleted += corrupted_deleted
+        total_multi_track_deleted += multi_track_deleted
+        total_zero_length_sequence_deleted += zero_length_sequence_deleted
+        total_timeout_deleted += timeout_deleted
 
-    print(f"{timeout_count} midi files timed out and deleted")
+        print(f"\nProcessed {total_valid_count}/{SAMPLE_SIZE} valid files so far...\n")
+
+        if total_valid_count + total_corrupted_deleted + total_multi_track_deleted + total_zero_length_sequence_deleted + total_timeout_deleted >= TOTAL_FILE_COUNT:
+            break
+    
+    move_files_to_final()
+
+    print(f"{total_valid_count} valid midi files found")
+    print(f"{total_corrupted_deleted} corrupt midi files deleted")
+    print(f"{total_multi_track_deleted} multi-track midi files deleted")
+    print(f"{total_zero_length_sequence_deleted} zero_length midi files deleted")
+    print(f"{total_timeout_deleted} midi files timed out and deleted")
