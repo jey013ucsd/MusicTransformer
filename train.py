@@ -8,11 +8,9 @@ from models.MusicTransformer import MusicTransformer
 from data_processing.dataset import MidiDataset, collate_batch
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-from torch.optim.lr_scheduler import CosineAnnealingLR
-
 
 # dataset paths
-EXPERIMENT_NAME = "40epoch_mid"
+EXPERIMENT_NAME = "100epoch_full_dataset"
 
 TRAIN_DATA_PATH = "datasets/tokenized/train"
 VAL_DATA_PATH = "datasets/tokenized/val"
@@ -24,17 +22,19 @@ os.makedirs(EXPERIMENT_NAME, exist_ok=True)
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 
 # Training hyperparameters
-BATCH_SIZE = 8
-NUM_EPOCHS = 40
-LEARNING_RATE = 1e-4
+BATCH_SIZE = 4
+ACCUMULATION_STEPS = 2
+NUM_EPOCHS = 100
+LEARNING_RATE = 1e-5
 
 # Model hyperparameters
 BLOCK_SIZE = 1024
 N_EMBD = 1024
 N_HEAD = 8
 N_LAYER = 8
-DROPOUT = 0.01
 MAX_SEQ_LENGTH = BLOCK_SIZE
+INITIAL_DROPOUT = 0.36
+FINAL_DROPOUT = 0.1
 
 # Device configuration
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -79,14 +79,16 @@ model = MusicTransformer(
     n_embd=N_EMBD,
     n_head=N_HEAD,
     n_layer=N_LAYER,
-    dropout=DROPOUT,
+    dropout=INITIAL_DROPOUT,
     max_len=MAX_SEQ_LENGTH
 ).to(device)
 
 loss_fn = nn.CrossEntropyLoss(ignore_index=vocab["TOKEN_PAD"])
 optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
-
+def get_dropout(epoch):
+    """Linearly decreases dropout over training epochs."""
+    return INITIAL_DROPOUT - (epoch / NUM_EPOCHS) * (INITIAL_DROPOUT - FINAL_DROPOUT)
 
 #training loop
 print(f"BEGIN TRAINING MODEL WITH: {sum(p.numel() for p in model.parameters() if p.requires_grad)} parameters")
@@ -94,25 +96,38 @@ train_losses = []
 val_losses = []
 
 for epoch in tqdm(range(1, NUM_EPOCHS + 1), desc="Training Progress"):
+    new_dropout = get_dropout(epoch)
+    
+    # Update dropout in all layers
+    for module in model.modules():
+        if isinstance(module, nn.Dropout):
+            module.p = new_dropout
+
+
     model.train()
     train_loss = 0.0
-    for x, y in train_loader:
+    optimizer.zero_grad()
+
+    for batch_idx, (x, y) in enumerate(train_loader):
         x = x.to(device)
         y = y.to(device)
 
-        optimizer.zero_grad()
-        logits = model(x)  # logits shape: (B, T, VOCAB_SIZE)
+        logits = model(x)
 
         # Flatten logits and targets for computing loss
         loss = loss_fn(logits.view(-1, VOCAB_SIZE), y.view(-1))
+        loss = loss / ACCUMULATION_STEPS
+
         loss.backward()
 
-        # gradient clipping        
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=2.0)
-        
-        optimizer.step()
+        # Apply gradient clipping
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
 
-        train_loss += loss.item()
+        if (batch_idx + 1) % ACCUMULATION_STEPS == 0 or (batch_idx + 1) == len(train_loader):
+            optimizer.step()
+            optimizer.zero_grad()
+
+        train_loss += loss.item() * ACCUMULATION_STEPS
 
     avg_train_loss = train_loss / len(train_loader)
     train_losses.append(avg_train_loss)
@@ -132,13 +147,11 @@ for epoch in tqdm(range(1, NUM_EPOCHS + 1), desc="Training Progress"):
     val_losses.append(avg_val_loss)
     print(f"Epoch {epoch}/{NUM_EPOCHS} - Validation Loss: {avg_val_loss:.4f}")
 
-
     # Save checkpoint every epoch
     if epoch % 4 == 0 or epoch == NUM_EPOCHS:
         checkpoint_path = os.path.join(CHECKPOINT_DIR, f"model_epoch_{epoch}.pt")
         torch.save(model.state_dict(), checkpoint_path)
         print(f"Saved checkpoint: {checkpoint_path}")
-
 
 # Save the final model
 final_model_path = os.path.join(EXPERIMENT_NAME, "model_final.pt")
