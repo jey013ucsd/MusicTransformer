@@ -9,7 +9,7 @@ from mido import MidiFile, MidiTrack, Message, second2tick
 
 # Paths
 EXPERIMENT_NAME = "100epoch_full_dataset"
-OUTPUT_NAME = "decoded_output7"
+OUTPUT_NAME = "good_input"
 VOCAB_PATH = "datasets/vocab/basic_vocab.json"
 CHECKPOINT_PATH = f"{EXPERIMENT_NAME}/model_final.pt"
 #CHECKPOINT_PATH = f"{EXPERIMENT_NAME}/checkpoints/model_epoch_52.pt"
@@ -24,7 +24,7 @@ MAX_SEQ_LENGTH = 1024
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 MAX_GENERATED_TOKENS = 1024  # maximum number of tokens to generate
 TEMPERATURE = 1.0
-TOP_K = 2
+TOP_K = 0
 
 
 
@@ -36,6 +36,7 @@ VOCAB_SIZE = len(vocab)
 print(f"Vocabulary size: {VOCAB_SIZE}")
 
 
+print(f"Device: {DEVICE}")
 
 model = MusicTransformer(
     vocab_size=VOCAB_SIZE,
@@ -114,9 +115,42 @@ seed_prompt = [
     vocab["NOTE_OFF_67"],
     vocab["NOTE_OFF_70"],
     vocab["NOTE_OFF_74"],
+
+    # First Motif: Ascending triplet pattern
+    vocab["NOTE_ON_60"], vocab["VELOCITY_20"],  # C4
+    vocab["TIME_SHIFT_200ms"],
+    vocab["NOTE_ON_64"], vocab["VELOCITY_20"],  # E4
+    vocab["TIME_SHIFT_200ms"],
+    vocab["NOTE_ON_67"], vocab["VELOCITY_20"],  # G4
+    vocab["TIME_SHIFT_200ms"],
+    vocab["NOTE_OFF_60"],
+    vocab["NOTE_OFF_64"],
+    vocab["NOTE_OFF_67"],
+
+    # Descending syncopated answer
+    vocab["NOTE_ON_65"], vocab["VELOCITY_20"],  # F4
+    vocab["TIME_SHIFT_300ms"],
+    vocab["NOTE_OFF_65"],
+    vocab["NOTE_ON_62"], vocab["VELOCITY_20"],  # D4
+    vocab["TIME_SHIFT_150ms"],
+    vocab["NOTE_OFF_62"],
+    vocab["NOTE_ON_60"], vocab["VELOCITY_20"],  # C4
+    vocab["TIME_SHIFT_250ms"],
+    vocab["NOTE_OFF_60"],
+
+    # Repeat motif with variation (higher and faster)
+    vocab["NOTE_ON_67"], vocab["VELOCITY_25"],  # G4
+    vocab["TIME_SHIFT_180ms"],
+    vocab["NOTE_ON_70"], vocab["VELOCITY_25"],  # Bb4
+    vocab["TIME_SHIFT_180ms"],
+    vocab["NOTE_ON_74"], vocab["VELOCITY_25"],  # D5
+    vocab["TIME_SHIFT_180ms"],
+    vocab["NOTE_OFF_67"],
+    vocab["NOTE_OFF_70"],
+    vocab["NOTE_OFF_74"]
 ]
 
-
+'''
 seed_prompt = [
 
     vocab["NOTE_ON_60"], vocab["VELOCITY_20"],
@@ -167,7 +201,7 @@ seed_prompt = [
     vocab["TIME_SHIFT_250ms"],
     vocab["NOTE_OFF_40"],
 ]
-
+'''
 
 generated_sequence = generate_sequence(model, seed_prompt)
 generated_tokens = [idx_to_token[token_id] for token_id in generated_sequence]
@@ -177,4 +211,5 @@ print(" ".join(generated_tokens))
 
 
 tokens = generated_tokens
-decode_to_midi_basic_vocab(tokens, f"{EXPERIMENT_NAME}/{OUTPUT_NAME}.mid")
+decode_to_midi_basic_vocab(tokens, f"{EXPERIMENT_NAME}/{OUTPUT_NAME}cheated.mid", turn_off_notes=True, max_len=600)
+decode_to_midi_basic_vocab(tokens, f"{EXPERIMENT_NAME}/{OUTPUT_NAME}.mid", turn_off_notes=False)
