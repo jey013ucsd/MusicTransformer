@@ -5,7 +5,7 @@ import json
 import os
 import pickle
 
-BASIC_VOCAB_PATH  = "datasets/vocab/basic_vocab.json"
+BASIC_VOCAB_PATH  = "models/vocab/basic_vocab.json"
 
 with open(BASIC_VOCAB_PATH, "r") as f:
     basic_vocab = json.load(f)
@@ -39,7 +39,8 @@ def tokenize_basic_vocab(mid):
                     accumulated_delta_ms = 0
                     break
                 elif accumulated_delta_ms < 10:
-                    shift = 10
+                    accumulated_delta_ms = 0
+                    break
                 elif accumulated_delta_ms >= 1000:
                     shift = 1000
                 else:

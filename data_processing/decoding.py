@@ -6,7 +6,7 @@ from models.MusicTransformer import MusicTransformer
 import mido
 from mido import MidiFile, MidiTrack, Message, second2tick, MetaMessage
 
-BASIC_VOCAB_PATH  = "datasets/vocab/basic_vocab.json"
+BASIC_VOCAB_PATH  = "models/vocab/basic_vocab.json"
 
 with open(BASIC_VOCAB_PATH, "r") as f:
     basic_vocab = json.load(f)

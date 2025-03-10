@@ -24,7 +24,7 @@ temp_tokenized_dir   = "datasets/tokenized/temp"
 TRAIN_RATIO = 0.80
 VAL_RATIO   = 0.10
 TEST_RATIO  = 0.10
-SAMPLE_SIZE = 10000
+SAMPLE_SIZE = 178561
 BATCH_SIZE = 5000
 TOTAL_FILE_COUNT = len(glob.glob(os.path.join(source_dir, "*.mid"))) #178561
 
@@ -83,9 +83,9 @@ def process_batch(batch_size):
             midi = MidiFile(file_path)
         except Exception as e:
             print(f"Error processing '{file_path}': {e}")
+            corrupted_deleted += 1
             try:
                 os.remove(file_path)
-                corrupted_deleted += 1
             except Exception as del_err:
                 print(f"Error deleting '{file_path}': {del_err}")
             pbar.update(1)
@@ -121,15 +121,15 @@ def process_batch(batch_size):
                     print(f"Error removing '{file_path}': {rm_err}")
                 valid_count += 1
             else:
+                zero_length_sequence_deleted += 1
                 try:
                     os.remove(file_path)
-                    zero_length_sequence_deleted += 1
                 except Exception as e:
                     print(f"Error deleting zero-length file '{file_path}': {e}")
         else:
+            multi_track_deleted += 1
             try:
                 os.remove(file_path)
-                multi_track_deleted += 1
             except Exception as e:
                 print(f"Error deleting multi-track file '{file_path}': {e}")
 

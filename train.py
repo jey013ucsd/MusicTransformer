@@ -5,17 +5,20 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from models.MusicTransformer import MusicTransformer
-from data_processing.dataset import MidiDataset, collate_batch
+from models.dataset import MidiDataset, collate_batch
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+import glob
+import re
+
 
 # dataset paths
-EXPERIMENT_NAME = "100epoch_full_dataset"
+EXPERIMENT_NAME = "100epoch_half_dataset"
 
 TRAIN_DATA_PATH = "datasets/tokenized/train"
 VAL_DATA_PATH = "datasets/tokenized/val"
 TEST_DATA_PATH = "datasets/tokenized/test"
-VOCAB_PATH = "datasets/vocab/basic_vocab.json"
+VOCAB_PATH = "models/vocab/basic_vocab.json"
 CHECKPOINT_DIR = f"{EXPERIMENT_NAME}/checkpoints"
 
 os.makedirs(EXPERIMENT_NAME, exist_ok=True)
@@ -33,8 +36,8 @@ N_EMBD = 1024
 N_HEAD = 8
 N_LAYER = 8
 MAX_SEQ_LENGTH = BLOCK_SIZE
-INITIAL_DROPOUT = 0.36
-FINAL_DROPOUT = 0.1
+INITIAL_DROPOUT = 0.1
+FINAL_DROPOUT = 0.05
 
 # Device configuration
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -90,15 +93,49 @@ def get_dropout(epoch):
     """Linearly decreases dropout over training epochs."""
     return INITIAL_DROPOUT - (epoch / NUM_EPOCHS) * (INITIAL_DROPOUT - FINAL_DROPOUT)
 
+
 #training loop
-print(f"BEGIN TRAINING MODEL WITH: {sum(p.numel() for p in model.parameters() if p.requires_grad)} parameters")
+start_epoch = 0
 train_losses = []
 val_losses = []
 
-for epoch in tqdm(range(1, NUM_EPOCHS + 1), desc="Training Progress"):
-    new_dropout = get_dropout(epoch)
+#recover latest checkpoint if exists
+checkpoint_paths = glob.glob(os.path.join(CHECKPOINT_DIR, "model_epoch_*.pt"))
+if checkpoint_paths:   
+    def extract_epoch(path):
+        match = re.search(r'epoch_(\d+)\.pt$', path)
+        return int(match.group(1)) if match else -1
+
+    latest_checkpoint_path= sorted(checkpoint_paths, key=extract_epoch)[-1]
+    print(f"CHECKPOINT FOUND AT: {latest_checkpoint_path}")
     
+    checkpoint = torch.load(latest_checkpoint_path)
+
+    model.load_state_dict(checkpoint["model_state_dict"])
+    optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+
+    start_epoch = checkpoint["epoch"]
+
+    if start_epoch >= NUM_EPOCHS:
+        print(f"Training is already complete...")
+        exit()
+
+    train_losses = checkpoint["train_losses"]
+    val_losses = checkpoint["val_losses"]
+    current_dropout = checkpoint["current_dropout"]
+
+    for module in model.modules():
+        if isinstance(module, nn.Dropout):
+            module.p = current_dropout
+else:
+    print("No checkpoints found, training from scratch...")
+
+print(f"BEGIN TRAINING MODEL WITH: {sum(p.numel() for p in model.parameters() if p.requires_grad)} parameters")
+
+for epoch in tqdm(range(start_epoch + 1, NUM_EPOCHS + 1), desc="Training Progress"):
+
     # Update dropout in all layers
+    new_dropout = get_dropout(epoch)
     for module in model.modules():
         if isinstance(module, nn.Dropout):
             module.p = new_dropout
@@ -147,10 +184,17 @@ for epoch in tqdm(range(1, NUM_EPOCHS + 1), desc="Training Progress"):
     val_losses.append(avg_val_loss)
     print(f"Epoch {epoch}/{NUM_EPOCHS} - Validation Loss: {avg_val_loss:.4f}")
 
-    # Save checkpoint every epoch
-    if epoch % 4 == 0 or epoch == NUM_EPOCHS:
+    # Save checkpoint every few epochs
+    if epoch % 5 == 0 or epoch == NUM_EPOCHS:
         checkpoint_path = os.path.join(CHECKPOINT_DIR, f"model_epoch_{epoch}.pt")
-        torch.save(model.state_dict(), checkpoint_path)
+        torch.save({
+            'epoch': epoch,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'train_losses': train_losses,
+            'val_losses': val_losses,
+            'current_dropout': get_dropout(epoch),
+        }, checkpoint_path)
         print(f"Saved checkpoint: {checkpoint_path}")
 
 # Save the final model
