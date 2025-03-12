@@ -13,7 +13,7 @@ import re
 
 
 # dataset paths
-EXPERIMENT_NAME = "100epoch_half_dataset"
+EXPERIMENT_NAME = "150epoch_half_dataset"
 
 TRAIN_DATA_PATH = "datasets/tokenized/train"
 VAL_DATA_PATH = "datasets/tokenized/val"
@@ -27,7 +27,7 @@ os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 # Training hyperparameters
 BATCH_SIZE = 4
 ACCUMULATION_STEPS = 2
-NUM_EPOCHS = 100
+NUM_EPOCHS = 150
 LEARNING_RATE = 1e-5
 
 # Model hyperparameters
@@ -36,8 +36,8 @@ N_EMBD = 1024
 N_HEAD = 8
 N_LAYER = 8
 MAX_SEQ_LENGTH = BLOCK_SIZE
-INITIAL_DROPOUT = 0.1
-FINAL_DROPOUT = 0.05
+INITIAL_DROPOUT = 0.3
+FINAL_DROPOUT = 0.1
 
 # Device configuration
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -107,7 +107,6 @@ if checkpoint_paths:
         return int(match.group(1)) if match else -1
 
     latest_checkpoint_path= sorted(checkpoint_paths, key=extract_epoch)[-1]
-    print(f"CHECKPOINT FOUND AT: {latest_checkpoint_path}")
     
     checkpoint = torch.load(latest_checkpoint_path)
 
@@ -127,6 +126,8 @@ if checkpoint_paths:
     for module in model.modules():
         if isinstance(module, nn.Dropout):
             module.p = current_dropout
+    
+    print(f"CHECKPOINT FOUND AT: {latest_checkpoint_path}. RESUMING TRAINING FROM EPOCH {start_epoch} WITH DROPOUT {current_dropout}")
 else:
     print("No checkpoints found, training from scratch...")
 

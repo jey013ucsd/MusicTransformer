@@ -8,11 +8,11 @@ import mido
 from mido import MidiFile, MidiTrack, Message, second2tick
 
 # Paths
-EXPERIMENT_NAME = "100epoch_full_dataset"
-OUTPUT_NAME = "good_input"
-VOCAB_PATH = "datasets/vocab/basic_vocab.json"
-CHECKPOINT_PATH = f"{EXPERIMENT_NAME}/model_final.pt"
-#CHECKPOINT_PATH = f"{EXPERIMENT_NAME}/checkpoints/model_epoch_52.pt"
+EXPERIMENT_NAME = "150epoch_half_dataset"
+OUTPUT_NAME = "test"
+VOCAB_PATH = "models/vocab/basic_vocab.json"
+CHECKPOINT_PATH = f"{EXPERIMENT_NAME}/checkpoints/model_epoch_45.pt"
+#CHECKPOINT_PATH = f"{EXPERIMENT_NAME}/model_final.pt"
 
 
 N_EMBD = 1024
@@ -47,7 +47,8 @@ model = MusicTransformer(
     max_len=MAX_SEQ_LENGTH
 ).to(DEVICE)
 
-model.load_state_dict(torch.load(CHECKPOINT_PATH, map_location=DEVICE))
+model.load_state_dict(torch.load(CHECKPOINT_PATH, map_location=DEVICE)["model_state_dict"]
+                      )
 model.eval()
 print(f"Loaded model from {CHECKPOINT_PATH}")
 
@@ -202,6 +203,7 @@ seed_prompt = [
     vocab["NOTE_OFF_40"],
 ]
 '''
+seed_prompt = [vocab["NOTE_ON_72"], vocab["VELOCITY_26"], vocab["NOTE_ON_75"], vocab["VELOCITY_26"], vocab["NOTE_ON_32"], vocab["VELOCITY_25"], vocab["NOTE_ON_60"], vocab["VELOCITY_26"], vocab["NOTE_ON_63"], vocab["VELOCITY_29"], vocab["NOTE_ON_35"], vocab["VELOCITY_29"], vocab["NOTE_ON_49"], vocab["VELOCITY_13"], vocab["NOTE_ON_40"], vocab["VELOCITY_18"], vocab["NOTE_OFF_40"], vocab["NOTE_OFF_49"], vocab["NOTE_OFF_35"], vocab["TIME_SHIFT_10ms"], vocab["NOTE_ON_63"], vocab["VELOCITY_26"], vocab["TIME_SHIFT_40ms"], vocab["NOTE_ON_84"], vocab["VELOCITY_26"], vocab["TIME_SHIFT_10ms"], vocab["NOTE_OFF_72"], vocab["NOTE_OFF_75"], vocab["TIME_SHIFT_10ms"], vocab["NOTE_ON_72"], vocab["VELOCITY_21"], vocab["NOTE_ON_75"], vocab["VELOCITY_21"], vocab["TIME_SHIFT_40ms"], vocab["NOTE_OFF_84"], vocab["TIME_SHIFT_10ms"], vocab["NOTE_ON_84"], vocab["VELOCITY_21"], vocab["TIME_SHIFT_10ms"], vocab["NOTE_OFF_72"], vocab["NOTE_OFF_75"], vocab["TIME_SHIFT_10ms"], vocab["NOTE_ON_72"], vocab["VELOCITY_27"], vocab["NOTE_ON_75"], vocab["VELOCITY_27"], vocab["TIME_SHIFT_40ms"], vocab["NOTE_OFF_84"], vocab["TIME_SHIFT_10ms"], vocab["NOTE_ON_84"], vocab["VELOCITY_27"], vocab["TIME_SHIFT_10ms"], vocab["NOTE_OFF_72"], vocab["NOTE_OFF_75"], vocab["TIME_SHIFT_10ms"], vocab["NOTE_ON_72"], vocab["VELOCITY_22"], vocab["NOTE_ON_75"], vocab["VELOCITY_22"], vocab["TIME_SHIFT_40ms"], vocab["NOTE_OFF_84"], vocab["TIME_SHIFT_10ms"], vocab["NOTE_ON_84"], vocab["VELOCITY_22"], vocab["TIME_SHIFT_10ms"], vocab["NOTE_OFF_72"], vocab["NOTE_OFF_75"], vocab["NOTE_OFF_60"], vocab["NOTE_OFF_63"]]
 
 generated_sequence = generate_sequence(model, seed_prompt)
 generated_tokens = [idx_to_token[token_id] for token_id in generated_sequence]
