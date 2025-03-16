@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-def plot_midi(tokens, max_tokens=2048, title="Piano-roll Plot", scale=1.0, y_range=None, x_padding=10):
+def plot_midi(tokens, max_tokens=2048, title="Piano-roll Plot", scale=1.0, y_range=None, x_padding=10, color='red'):
     if max_tokens is not None:
         tokens = tokens[:max_tokens]
     
@@ -37,9 +37,8 @@ def plot_midi(tokens, max_tokens=2048, title="Piano-roll Plot", scale=1.0, y_ran
     width = max(1, (current_time * scale) / 100)
     
     plt.figure(figsize=(width, 6))
-    plt.title(title)
-    plt.xlabel("Time (ms)")
-    plt.ylabel("MIDI Pitch")
+    #plt.title(title)
+
     
     if y_range is not None:
         plt.ylim(y_range)
@@ -48,7 +47,10 @@ def plot_midi(tokens, max_tokens=2048, title="Piano-roll Plot", scale=1.0, y_ran
     
     for seg in note_segments:
         start_t, end_t, pitch = seg
-        plt.hlines(y=pitch, xmin=start_t, xmax=end_t, linewidth=3, color="orange")
+        plt.hlines(y=pitch, xmin=start_t, xmax=end_t, linewidth=4, color=color)
     
-    plt.grid(False)
+    plt.grid(True, linewidth=0.5)
+    plt.gca().set_xticklabels([])
+    plt.gca().set_yticklabels([])
+
     plt.show()
