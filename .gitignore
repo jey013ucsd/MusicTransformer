@@ -7,3 +7,5 @@ venv
 final_report.ipynb
 
 data_visualization.ipynb
+
+models\vocab\basic_vocab.json

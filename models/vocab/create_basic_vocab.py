@@ -49,5 +49,5 @@ if __name__ == "__main__":
     print(f"Vocabulary size: {len(vocab)}")
     
     # Save vocab as json file
-    with open("datasets/vocab/basic_vocab.json", "w") as f:
+    with open("models/vocab/basic_vocab.json", "w") as f:
         json.dump(vocab, f, indent=4)
