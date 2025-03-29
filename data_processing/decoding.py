@@ -99,7 +99,7 @@ def off_notes(mid, max_length_ms=350, tempo=500000):
 
 def decode_to_midi_basic_vocab(token_sequence, save_path, ticks_per_beat=480, tempo=500000, turn_off_notes=False, max_len=450):
     """
-    Decodes tokens and converst to midi file
+    Decodes tokens with basic vocab and converst to midi file
 
     """
     mid = MidiFile(ticks_per_beat=ticks_per_beat)
@@ -171,6 +171,78 @@ def decode_to_midi_basic_vocab(token_sequence, save_path, ticks_per_beat=480, te
         elif token.startswith("VELOCITY_"):
             # skip unexpected velocity tokens
             print(f"Warning: Unexpected token {token} encountered; skipping.")
+            i += 1
+
+        else:
+            print(f"Warning: Unrecognized token: {token}. Skipping.")
+            i += 1
+
+    if turn_off_notes:
+        off_notes(mid, max_length_ms=max_len)
+        
+    mid.save(save_path)
+    print(f"MIDI file saved to {save_path}")
+
+
+def decode_to_midi_basic_vocab_velocity_bins(token_sequence, save_path, ticks_per_beat=480, tempo=500000, turn_off_notes=False, max_len=450):
+    """
+    Decodes tokens with basic_vocab_veocity_bins and converts to midi file
+    """
+    mid = MidiFile(ticks_per_beat=ticks_per_beat)
+    track = MidiTrack()
+    mid.tracks.append(track)
+    
+    accumulated_time_ticks = 0
+    current_velocity = 64  # default velocity
+    
+    i = 0
+    while i < len(token_sequence):
+        token = token_sequence[i]
+
+        if token.startswith("TIME_SHIFT_"):
+            try:
+                ms_value = int(token[len("TIME_SHIFT_"):-2])
+            except ValueError:
+                print(f"Warning: Could not parse time shift token: {token}. Skipping.")
+                i += 1
+                continue
+            seconds = ms_value / 1000.0
+            ticks = second2tick(seconds, ticks_per_beat, tempo)
+            accumulated_time_ticks += int(round(ticks))
+            i += 1
+
+        elif token.startswith("VELOCITY_"):
+            try:
+                velocity_bin = int(token[len("VELOCITY_"):])
+            except ValueError:
+                print(f"Warning: Could not parse velocity token: {token}. Using default velocity 64.")
+                current_velocity = 64
+            else:
+                current_velocity = int(round((velocity_bin / 32) * 127))
+            i += 1
+
+        elif token.startswith("NOTE_ON_"):
+            try:
+                note = int(token[len("NOTE_ON_"):])
+            except ValueError:
+                print(f"Warning: Could not parse NOTE_ON token: {token}. Skipping.")
+                i += 1
+                continue
+            msg = Message("note_on", note=note, velocity=current_velocity, time=accumulated_time_ticks)
+            track.append(msg)
+            accumulated_time_ticks = 0
+            i += 1
+
+        elif token.startswith("NOTE_OFF_"):
+            try:
+                note = int(token[len("NOTE_OFF_"):])
+            except ValueError:
+                print(f"Warning: Could not parse NOTE_OFF token: {token}. Skipping.")
+                i += 1
+                continue
+            msg = Message("note_off", note=note, velocity=0, time=accumulated_time_ticks)
+            track.append(msg)
+            accumulated_time_ticks = 0
             i += 1
 
         else:

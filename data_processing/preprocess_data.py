@@ -8,7 +8,7 @@ from tqdm import tqdm
 import json
 import pickle
 from concurrent.futures import ProcessPoolExecutor, TimeoutError
-from tokenize_midi import tokenize_basic_vocab
+from tokenize_midi import tokenize_basic_vocab, tokenize_basic_vocab_velocity_bins
 
 ###### CLEAN DATA, SPLIT INTO TEST, TRAIN, AND VAL, THEN TOKENIZE INTO IDS #########
 
@@ -28,7 +28,7 @@ SAMPLE_SIZE = 178561
 BATCH_SIZE = 5000
 TOTAL_FILE_COUNT = len(glob.glob(os.path.join(source_dir, "*.mid"))) #178561
 
-VOCAB = "BASIC" #select vocab
+VOCAB = "BASIC_VELOCITY_BINS" #select vocab [BASIC, BASIC_VELOCITY_BINS]
 
 
 for d in [
@@ -42,8 +42,12 @@ for d in [
 
 
 tokenizer = tokenize_basic_vocab
-if VOCAB == "basic":
+if VOCAB == "BASIC":
+    print(f"USING TOKENIZER: {VOCAB}")
     tokenizer = tokenize_basic_vocab
+if VOCAB == "BASIC_VELOCITY_BINS":
+    print(f"USING TOKENIZER: {VOCAB}")
+    tokenizer = tokenize_basic_vocab_velocity_bins
 
 
 executor = ProcessPoolExecutor(max_workers=1)

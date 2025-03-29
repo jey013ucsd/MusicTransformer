@@ -55,6 +55,6 @@ def create_direct_dataset():
     print("All files have been copied.")
 
 if __name__ == "__main__":
-    get_dataset("LakhMIDI")
+    #get_dataset("LakhMIDI")
     create_direct_dataset()
     print("Done")

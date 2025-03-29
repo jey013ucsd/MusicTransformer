@@ -2,16 +2,16 @@ import os
 import json
 import torch
 import torch.nn.functional as F
-from models.MusicTransformer import MusicTransformer
-from data_processing.decoding import decode_to_midi_basic_vocab
+from models.MusicTransformerv2 import MusicTransformerv2
+from data_processing.decoding import decode_to_midi_basic_vocab, decode_to_midi_basic_vocab_velocity_bins
 import mido
 from mido import MidiFile, MidiTrack, Message, second2tick
 
 # Paths
-EXPERIMENT_NAME = "150epoch_half_dataset"
-OUTPUT_NAME = "test"
+EXPERIMENT_NAME = "v2_100epoch_half_dataset"
+OUTPUT_NAME = "paris_test_t0.85_tk355"
 VOCAB_PATH = "models/vocab/basic_vocab.json"
-CHECKPOINT_PATH = f"{EXPERIMENT_NAME}/checkpoints/model_epoch_45.pt"
+CHECKPOINT_PATH = f"{EXPERIMENT_NAME}/checkpoints/model_epoch_100.pt"
 #CHECKPOINT_PATH = f"{EXPERIMENT_NAME}/model_final.pt"
 
 
@@ -22,9 +22,9 @@ DROPOUT = 0
 MAX_SEQ_LENGTH = 1024
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-MAX_GENERATED_TOKENS = 1024  # maximum number of tokens to generate
-TEMPERATURE = 1.0
-TOP_K = 0
+MAX_GENERATED_TOKENS = 2048  # maximum number of tokens to generate
+TEMPERATURE = 0.85
+TOP_K = 355
 
 
 
@@ -38,7 +38,7 @@ print(f"Vocabulary size: {VOCAB_SIZE}")
 
 print(f"Device: {DEVICE}")
 
-model = MusicTransformer(
+model = MusicTransformerv2(
     vocab_size=VOCAB_SIZE,
     n_embd=N_EMBD,
     n_head=N_HEAD,
@@ -47,8 +47,7 @@ model = MusicTransformer(
     max_len=MAX_SEQ_LENGTH
 ).to(DEVICE)
 
-model.load_state_dict(torch.load(CHECKPOINT_PATH, map_location=DEVICE)["model_state_dict"]
-                      )
+model.load_state_dict(torch.load(CHECKPOINT_PATH, map_location=DEVICE)["model_state_dict"])
 model.eval()
 print(f"Loaded model from {CHECKPOINT_PATH}")
 
@@ -83,127 +82,12 @@ def generate_sequence(model, seed_tokens, max_tokens=MAX_GENERATED_TOKENS, tempe
 
 
 #input sequence
-seed_prompt = [
-    # First Motif: Ascending triplet pattern
-    vocab["NOTE_ON_60"], vocab["VELOCITY_20"],  # C4
-    vocab["TIME_SHIFT_200ms"],
-    vocab["NOTE_ON_64"], vocab["VELOCITY_20"],  # E4
-    vocab["TIME_SHIFT_200ms"],
-    vocab["NOTE_ON_67"], vocab["VELOCITY_20"],  # G4
-    vocab["TIME_SHIFT_200ms"],
-    vocab["NOTE_OFF_60"],
-    vocab["NOTE_OFF_64"],
-    vocab["NOTE_OFF_67"],
+seed_prompt = [53, 380, 65, 380, 280, 181, 193, 261, 60, 380, 273, 188, 292, 68, 380, 56, 380, 280, 196, 184, 261, 60, 380, 273, 188, 298, 55, 380, 67, 380, 280, 183, 195, 261, 60, 380, 273, 188, 292, 53, 380, 65, 380, 280, 181, 193, 261, 60, 380, 273, 188, 261, 72, 380, 84, 380, 60, 380, 273, 200, 212, 188, 292, 53, 380, 65, 380, 280, 181, 193, 261, 60, 380, 273, 188, 292, 68, 380, 56, 380, 280, 196, 184, 261, 60, 380, 273, 188, 298, 55, 380, 67, 380, 280, 183, 195, 261, 60, 380, 273, 188, 292, 65, 380, 53, 380, 280, 193, 181, 261, 60, 380, 273, 188, 261, 72, 380, 84, 380, 60, 380, 273, 200, 212, 188]
 
-    # Descending syncopated answer
-    vocab["NOTE_ON_65"], vocab["VELOCITY_20"],  # F4
-    vocab["TIME_SHIFT_300ms"],
-    vocab["NOTE_OFF_65"],
-    vocab["NOTE_ON_62"], vocab["VELOCITY_20"],  # D4
-    vocab["TIME_SHIFT_150ms"],
-    vocab["NOTE_OFF_62"],
-    vocab["NOTE_ON_60"], vocab["VELOCITY_20"],  # C4
-    vocab["TIME_SHIFT_250ms"],
-    vocab["NOTE_OFF_60"],
 
-    # Repeat motif with variation (higher and faster)
-    vocab["NOTE_ON_67"], vocab["VELOCITY_25"],  # G4
-    vocab["TIME_SHIFT_180ms"],
-    vocab["NOTE_ON_70"], vocab["VELOCITY_25"],  # Bb4
-    vocab["TIME_SHIFT_180ms"],
-    vocab["NOTE_ON_74"], vocab["VELOCITY_25"],  # D5
-    vocab["TIME_SHIFT_180ms"],
-    vocab["NOTE_OFF_67"],
-    vocab["NOTE_OFF_70"],
-    vocab["NOTE_OFF_74"],
 
-    # First Motif: Ascending triplet pattern
-    vocab["NOTE_ON_60"], vocab["VELOCITY_20"],  # C4
-    vocab["TIME_SHIFT_200ms"],
-    vocab["NOTE_ON_64"], vocab["VELOCITY_20"],  # E4
-    vocab["TIME_SHIFT_200ms"],
-    vocab["NOTE_ON_67"], vocab["VELOCITY_20"],  # G4
-    vocab["TIME_SHIFT_200ms"],
-    vocab["NOTE_OFF_60"],
-    vocab["NOTE_OFF_64"],
-    vocab["NOTE_OFF_67"],
 
-    # Descending syncopated answer
-    vocab["NOTE_ON_65"], vocab["VELOCITY_20"],  # F4
-    vocab["TIME_SHIFT_300ms"],
-    vocab["NOTE_OFF_65"],
-    vocab["NOTE_ON_62"], vocab["VELOCITY_20"],  # D4
-    vocab["TIME_SHIFT_150ms"],
-    vocab["NOTE_OFF_62"],
-    vocab["NOTE_ON_60"], vocab["VELOCITY_20"],  # C4
-    vocab["TIME_SHIFT_250ms"],
-    vocab["NOTE_OFF_60"],
 
-    # Repeat motif with variation (higher and faster)
-    vocab["NOTE_ON_67"], vocab["VELOCITY_25"],  # G4
-    vocab["TIME_SHIFT_180ms"],
-    vocab["NOTE_ON_70"], vocab["VELOCITY_25"],  # Bb4
-    vocab["TIME_SHIFT_180ms"],
-    vocab["NOTE_ON_74"], vocab["VELOCITY_25"],  # D5
-    vocab["TIME_SHIFT_180ms"],
-    vocab["NOTE_OFF_67"],
-    vocab["NOTE_OFF_70"],
-    vocab["NOTE_OFF_74"]
-]
-
-'''
-seed_prompt = [
-
-    vocab["NOTE_ON_60"], vocab["VELOCITY_20"],
-    vocab["TIME_SHIFT_250ms"],
-    vocab["NOTE_OFF_60"],
-
-    vocab["NOTE_ON_60"], vocab["VELOCITY_20"],
-    vocab["TIME_SHIFT_250ms"],
-    vocab["NOTE_OFF_60"],
-
-    vocab["NOTE_ON_40"], vocab["VELOCITY_20"],
-    vocab["TIME_SHIFT_250ms"],
-    vocab["NOTE_OFF_40"],
-
-    vocab["NOTE_ON_40"], vocab["VELOCITY_20"],
-    vocab["TIME_SHIFT_250ms"],
-    vocab["NOTE_OFF_40"],
-    
-    vocab["NOTE_ON_60"], vocab["VELOCITY_20"],
-    vocab["TIME_SHIFT_250ms"],
-    vocab["NOTE_OFF_60"],
-
-    vocab["NOTE_ON_60"], vocab["VELOCITY_20"],
-    vocab["TIME_SHIFT_250ms"],
-    vocab["NOTE_OFF_60"],
-
-    vocab["NOTE_ON_40"], vocab["VELOCITY_20"],
-    vocab["TIME_SHIFT_250ms"],
-    vocab["NOTE_OFF_40"],
-
-    vocab["NOTE_ON_40"], vocab["VELOCITY_20"],
-    vocab["TIME_SHIFT_250ms"],
-    vocab["NOTE_OFF_40"],
-
-    vocab["NOTE_ON_60"], vocab["VELOCITY_20"],
-    vocab["TIME_SHIFT_250ms"],
-    vocab["NOTE_OFF_60"],
-
-    vocab["NOTE_ON_60"], vocab["VELOCITY_20"],
-    vocab["TIME_SHIFT_250ms"],
-    vocab["NOTE_OFF_60"],
-
-    vocab["NOTE_ON_40"], vocab["VELOCITY_20"],
-    vocab["TIME_SHIFT_250ms"],
-    vocab["NOTE_OFF_40"],
-
-    vocab["NOTE_ON_40"], vocab["VELOCITY_20"],
-    vocab["TIME_SHIFT_250ms"],
-    vocab["NOTE_OFF_40"],
-]
-'''
-seed_prompt = [vocab["NOTE_ON_72"], vocab["VELOCITY_26"], vocab["NOTE_ON_75"], vocab["VELOCITY_26"], vocab["NOTE_ON_32"], vocab["VELOCITY_25"], vocab["NOTE_ON_60"], vocab["VELOCITY_26"], vocab["NOTE_ON_63"], vocab["VELOCITY_29"], vocab["NOTE_ON_35"], vocab["VELOCITY_29"], vocab["NOTE_ON_49"], vocab["VELOCITY_13"], vocab["NOTE_ON_40"], vocab["VELOCITY_18"], vocab["NOTE_OFF_40"], vocab["NOTE_OFF_49"], vocab["NOTE_OFF_35"], vocab["TIME_SHIFT_10ms"], vocab["NOTE_ON_63"], vocab["VELOCITY_26"], vocab["TIME_SHIFT_40ms"], vocab["NOTE_ON_84"], vocab["VELOCITY_26"], vocab["TIME_SHIFT_10ms"], vocab["NOTE_OFF_72"], vocab["NOTE_OFF_75"], vocab["TIME_SHIFT_10ms"], vocab["NOTE_ON_72"], vocab["VELOCITY_21"], vocab["NOTE_ON_75"], vocab["VELOCITY_21"], vocab["TIME_SHIFT_40ms"], vocab["NOTE_OFF_84"], vocab["TIME_SHIFT_10ms"], vocab["NOTE_ON_84"], vocab["VELOCITY_21"], vocab["TIME_SHIFT_10ms"], vocab["NOTE_OFF_72"], vocab["NOTE_OFF_75"], vocab["TIME_SHIFT_10ms"], vocab["NOTE_ON_72"], vocab["VELOCITY_27"], vocab["NOTE_ON_75"], vocab["VELOCITY_27"], vocab["TIME_SHIFT_40ms"], vocab["NOTE_OFF_84"], vocab["TIME_SHIFT_10ms"], vocab["NOTE_ON_84"], vocab["VELOCITY_27"], vocab["TIME_SHIFT_10ms"], vocab["NOTE_OFF_72"], vocab["NOTE_OFF_75"], vocab["TIME_SHIFT_10ms"], vocab["NOTE_ON_72"], vocab["VELOCITY_22"], vocab["NOTE_ON_75"], vocab["VELOCITY_22"], vocab["TIME_SHIFT_40ms"], vocab["NOTE_OFF_84"], vocab["TIME_SHIFT_10ms"], vocab["NOTE_ON_84"], vocab["VELOCITY_22"], vocab["TIME_SHIFT_10ms"], vocab["NOTE_OFF_72"], vocab["NOTE_OFF_75"], vocab["NOTE_OFF_60"], vocab["NOTE_OFF_63"]]
 
 generated_sequence = generate_sequence(model, seed_prompt)
 generated_tokens = [idx_to_token[token_id] for token_id in generated_sequence]
@@ -213,5 +97,5 @@ print(" ".join(generated_tokens))
 
 
 tokens = generated_tokens
-decode_to_midi_basic_vocab(tokens, f"{EXPERIMENT_NAME}/{OUTPUT_NAME}cheated.mid", turn_off_notes=True, max_len=600)
-decode_to_midi_basic_vocab(tokens, f"{EXPERIMENT_NAME}/{OUTPUT_NAME}.mid", turn_off_notes=False)
+decode_to_midi_basic_vocab_velocity_bins(tokens, f"{EXPERIMENT_NAME}/{OUTPUT_NAME}cheated.mid", turn_off_notes=True, max_len=350)
+decode_to_midi_basic_vocab_velocity_bins(tokens, f"{EXPERIMENT_NAME}/{OUTPUT_NAME}.mid", turn_off_notes=False)

@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from models.MusicTransformer import MusicTransformer
+from models.MusicTransformerv2 import MusicTransformerv2
 from models.dataset import MidiDataset, collate_batch
 from tqdm import tqdm
 import matplotlib.pyplot as plt
@@ -13,7 +14,7 @@ import re
 
 
 # dataset paths
-EXPERIMENT_NAME = "150epoch_half_dataset"
+EXPERIMENT_NAME = "v2_100epoch_half_dataset"
 
 TRAIN_DATA_PATH = "datasets/tokenized/train"
 VAL_DATA_PATH = "datasets/tokenized/val"
@@ -27,7 +28,7 @@ os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 # Training hyperparameters
 BATCH_SIZE = 4
 ACCUMULATION_STEPS = 2
-NUM_EPOCHS = 150
+NUM_EPOCHS = 100
 LEARNING_RATE = 1e-5
 
 # Model hyperparameters
@@ -77,7 +78,7 @@ val_loader = DataLoader(
 )
 
 # setup model
-model = MusicTransformer(
+model = MusicTransformerv2(
     vocab_size=VOCAB_SIZE,
     n_embd=N_EMBD,
     n_head=N_HEAD,
