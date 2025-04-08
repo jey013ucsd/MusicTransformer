@@ -3,14 +3,14 @@ import json
 import torch
 import torch.nn.functional as F
 from models.MusicTransformerv2 import MusicTransformerv2
-from data_processing.decoding import decode_to_midi_basic_vocab, decode_to_midi_basic_vocab_velocity_bins
+from data_processing.decoding import decode_to_midi_basic_vocab, decode_to_midi_basic_vocab_velocity_bins, decode_to_midi_multi_instr_vocab
 import mido
 from mido import MidiFile, MidiTrack, Message, second2tick
 
 # Paths
 EXPERIMENT_NAME = "v2_100epoch_half_dataset"
 OUTPUT_NAME = "paris_test_t0.85_tk355"
-VOCAB_PATH = "models/vocab/basic_vocab.json"
+VOCAB_PATH = "models/vocab/multi_instr_vocab.json"
 CHECKPOINT_PATH = f"{EXPERIMENT_NAME}/checkpoints/model_epoch_100.pt"
 #CHECKPOINT_PATH = f"{EXPERIMENT_NAME}/model_final.pt"
 
@@ -97,5 +97,5 @@ print(" ".join(generated_tokens))
 
 
 tokens = generated_tokens
-decode_to_midi_basic_vocab_velocity_bins(tokens, f"{EXPERIMENT_NAME}/{OUTPUT_NAME}cheated.mid", turn_off_notes=True, max_len=350)
-decode_to_midi_basic_vocab_velocity_bins(tokens, f"{EXPERIMENT_NAME}/{OUTPUT_NAME}.mid", turn_off_notes=False)
+decode_to_midi_multi_instr_vocab(tokens, f"{EXPERIMENT_NAME}/{OUTPUT_NAME}cheated.mid", turn_off_notes=True, max_len=350)
+#decode_to_midi_basic_vocab_velocity_bins(tokens, f"{EXPERIMENT_NAME}/{OUTPUT_NAME}.mid", turn_off_notes=False)

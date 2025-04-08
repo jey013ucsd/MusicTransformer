@@ -5,16 +5,24 @@ import torch.nn.functional as F
 from models.MusicTransformer import MusicTransformer
 import mido
 from mido import MidiFile, MidiTrack, Message, second2tick, MetaMessage
+from collections import defaultdict
 
 BASIC_VOCAB_PATH  = "models/vocab/basic_vocab.json"
+MULTI_INSTR_VOCAB_PATH = "models/vocab/multi_instr_vocab.json"
 
 with open(BASIC_VOCAB_PATH, "r") as f:
     basic_vocab = json.load(f)
 basic_id_to_token = {v: k for k, v in basic_vocab.items()}
 
+with open(MULTI_INSTR_VOCAB_PATH, "r") as f:
+    multi_instr_vocab = json.load(f)
+multi_instr_id_to_token = {v: k for k, v in multi_instr_vocab.items()}
 
 def decode_to_tokens_basic_vocab(token_sequence):
     return [basic_id_to_token[token_id] for token_id in token_sequence]
+
+def decode_to_tokens_multi_instr_vocab(token_sequence):
+    return [multi_instr_id_to_token[token_id] for token_id in token_sequence]
 
 
 def off_notes(mid, max_length_ms=350, tempo=500000):
@@ -251,6 +259,109 @@ def decode_to_midi_basic_vocab_velocity_bins(token_sequence, save_path, ticks_pe
 
     if turn_off_notes:
         off_notes(mid, max_length_ms=max_len)
+        
+    mid.save(save_path)
+    print(f"MIDI file saved to {save_path}")
+
+
+def decode_to_midi_multi_instr_vocab(token_sequence, save_path, ticks_per_beat=480, tempo=500000):
+    """
+    Decodes tokens with multi_instr_vocab and converts to midi file
+    """
+    DRUM_PROGRAMS = {0}
+
+    mid = MidiFile(ticks_per_beat=ticks_per_beat)
+    track = MidiTrack()
+    mid.tracks.append(track)
+    
+    # Use a defaultdict that returns None so we can detect unassigned instruments.
+    channels = defaultdict(lambda: None)
+    next_free_channel = 0
+    current_channel = 0
+    
+    accumulated_time_ticks = 0
+    current_velocity = 64  # default velocity
+    
+    i = 0
+    while i < len(token_sequence):
+        token = token_sequence[i]
+
+        if token.startswith("TIME_SHIFT_"):
+            try:
+                ms_value = int(token[len("TIME_SHIFT_"):-2])
+            except ValueError:
+                print(f"Warning: Could not parse time shift token: {token}. Skipping.")
+                i += 1
+                continue
+            seconds = ms_value / 1000.0
+            ticks = second2tick(seconds, ticks_per_beat, tempo)
+            accumulated_time_ticks += int(round(ticks))
+            i += 1
+
+        elif token.startswith("VELOCITY_"):
+            try:
+                velocity_bin = int(token[len("VELOCITY_"):])
+            except ValueError:
+                print(f"Warning: Could not parse velocity token: {token}. Using default velocity 64.")
+                current_velocity = 64
+            else:
+                # Convert velocity bin (1..32) to MIDI velocity (1..127)
+                current_velocity = int(round((velocity_bin / 32) * 127))
+            i += 1
+
+        elif token.startswith("INSTRUMENT_"):
+            try:
+                instr = int(token[len("INSTRUMENT_"):])
+            except ValueError:
+                print(f"Warning: Could not parse instrument token: {token}. Skipping.")
+                i += 1
+                continue
+            
+            if channels[instr] is None:
+                # Force drums to channel 9 if this instrument is in DRUM_PROGRAMS
+                if instr in DRUM_PROGRAMS:
+                    channels[instr] = 9
+                else:
+                    channels[instr] = next_free_channel
+                    next_free_channel += 1
+                    if next_free_channel > 15:
+                        next_free_channel = 15
+            
+            current_channel = channels[instr]
+            
+            # Insert a program_change message to switch instrument
+            msg = Message("program_change", channel=current_channel, program=instr, time=accumulated_time_ticks)
+            track.append(msg)
+            accumulated_time_ticks = 0
+            i += 1
+
+        elif token.startswith("NOTE_ON_"):
+            try:
+                note = int(token[len("NOTE_ON_"):])
+            except ValueError:
+                print(f"Warning: Could not parse NOTE_ON token: {token}. Skipping.")
+                i += 1
+                continue
+            msg = Message("note_on", channel=current_channel, note=note, velocity=current_velocity, time=accumulated_time_ticks)
+            track.append(msg)
+            accumulated_time_ticks = 0
+            i += 1
+
+        elif token.startswith("NOTE_OFF_"):
+            try:
+                note = int(token[len("NOTE_OFF_"):])
+            except ValueError:
+                print(f"Warning: Could not parse NOTE_OFF token: {token}. Skipping.")
+                i += 1
+                continue
+            msg = Message("note_off", channel=current_channel, note=note, velocity=0, time=accumulated_time_ticks)
+            track.append(msg)
+            accumulated_time_ticks = 0
+            i += 1
+
+        else:
+            print(f"Warning: Unrecognized token: {token}. Skipping.")
+            i += 1
         
     mid.save(save_path)
     print(f"MIDI file saved to {save_path}")
