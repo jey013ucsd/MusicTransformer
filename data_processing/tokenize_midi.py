@@ -143,6 +143,40 @@ def tokenize_multi_instr_vocab(mid):
     """
     Velocity token applies to all subsequent notes
     """
+
+    def clean_tokens(sequence):
+        new_sequence = []
+        subseq = defaultdict(list)
+        curr_instr = None
+
+        for token in sequence:
+            if "INSTRUMENT" in token:
+                curr_instr = token
+
+            elif "TIME_SHIFT" in token:
+                if subseq:
+                    for instr in subseq:
+                        if subseq[instr]:
+                            new_sequence.append(instr)
+                            new_sequence.extend(subseq[instr])
+                    subseq = defaultdict(list)
+
+                new_sequence.append(token)
+
+            else:
+                if curr_instr is not None:
+                    subseq[curr_instr].append(token)
+                else:
+                    pass
+        if subseq:
+            for instr in subseq:
+                if subseq[instr]:
+                    new_sequence.append(instr)
+                    new_sequence.extend(subseq[instr])
+
+        return new_sequence
+    
+
     DRUM_CHANNEL = 9
     
     track = mid.tracks[0]
@@ -204,6 +238,8 @@ def tokenize_multi_instr_vocab(mid):
             else:
                 token_sequence.append(f"NOTE_OFF_{msg.note}")
 
+    token_sequence = clean_tokens(token_sequence)
+    
     token_id_sequence = [multi_instr_vocab[t] for t in token_sequence]
 
     # Trim leading/trailing time shifts
