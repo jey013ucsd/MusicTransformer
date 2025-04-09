@@ -175,10 +175,7 @@ def tokenize_multi_instr_vocab(mid):
                     new_sequence.extend(subseq[instr])
 
         return new_sequence
-    
-
-    DRUM_CHANNEL = 9
-    
+        
     track = mid.tracks[0]
     current_tempo = 500000
     token_sequence = []
@@ -199,15 +196,13 @@ def tokenize_multi_instr_vocab(mid):
             continue
 
         if msg.type == "program_change":
-            # Force channel 9 to use instrument 0 for drums
-            if msg.channel == DRUM_CHANNEL:
-                channels[msg.channel] = 0
-            else:
-                channels[msg.channel] = msg.program
-            continue
+            # process program change
+            if msg.channel == 9:
+                continue
+            channels[msg.channel] = msg.program
 
         if msg.type in ('note_on', 'note_off'):
-            # Process time shifts first
+            # insert time shift
             while accumulated_delta_ms > 0:
                 if accumulated_delta_ms < 5:
                     accumulated_delta_ms = 0
@@ -221,6 +216,21 @@ def tokenize_multi_instr_vocab(mid):
                     shift = (accumulated_delta_ms // 10) * 10
                 token_sequence.append(f"TIME_SHIFT_{shift}ms")
                 accumulated_delta_ms -= shift
+            
+            if msg.channel == 9:
+                if msg.type == 'note_on':
+                    if msg.velocity == 0:
+                        token_sequence.append(f"DRUM_OFF_{msg.note}")
+                        continue
+                    else:
+                        velocity_bin = max(1, min(16, int(round((msg.velocity / 127) * 16))))
+                        if current_velocity != velocity_bin:
+                            token_sequence.append(f"VELOCITY_{velocity_bin}")
+                            current_velocity = velocity_bin
+                        token_sequence.append(f"DRUM_ON_{msg.note}")
+                else:
+                    token_sequence.append(f"DRUM_OFF_{msg.note}")
+                continue
 
             if current_instrument != channels[msg.channel]:
                 current_instrument = channels[msg.channel]
@@ -229,8 +239,9 @@ def tokenize_multi_instr_vocab(mid):
             if msg.type == 'note_on':
                 if msg.velocity == 0:
                     token_sequence.append(f"NOTE_OFF_{msg.note}")
+                    continue
                 else:
-                    velocity_bin = max(1, min(32, int(round((msg.velocity / 127) * 32))))
+                    velocity_bin = max(1, min(16, int(round((msg.velocity / 127) * 16))))
                     if current_velocity != velocity_bin:
                         token_sequence.append(f"VELOCITY_{velocity_bin}")
                         current_velocity = velocity_bin
@@ -239,7 +250,7 @@ def tokenize_multi_instr_vocab(mid):
                 token_sequence.append(f"NOTE_OFF_{msg.note}")
 
     token_sequence = clean_tokens(token_sequence)
-    
+
     token_id_sequence = [multi_instr_vocab[t] for t in token_sequence]
 
     # Trim leading/trailing time shifts

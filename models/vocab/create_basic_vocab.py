@@ -2,7 +2,7 @@ import json
 
 def build_vocab():
     """
-    Build a vocabulary for the Music Transformer using encoding proposed by Oore et al. (2018):
+    Build a basic vocabulary for the Music Transformer:
       - 128 NOTE_ON events,
       - 128 NOTE_OFF events,
       - 100 TIME_SHIFT events (10ms increments up to 1000ms),

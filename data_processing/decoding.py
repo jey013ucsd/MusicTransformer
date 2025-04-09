@@ -305,8 +305,7 @@ def decode_to_midi_multi_instr_vocab(token_sequence, save_path, ticks_per_beat=4
                 print(f"Warning: Could not parse velocity token: {token}. Using default velocity 64.")
                 current_velocity = 64
             else:
-                # Convert velocity bin (1..32) to MIDI velocity (1..127)
-                current_velocity = int(round((velocity_bin / 32) * 127))
+                current_velocity = int(round((velocity_bin / 16) * 127))
             i += 1
 
         elif token.startswith("INSTRUMENT_"):
@@ -359,6 +358,29 @@ def decode_to_midi_multi_instr_vocab(token_sequence, save_path, ticks_per_beat=4
             accumulated_time_ticks = 0
             i += 1
 
+        elif token.startswith("DRUM_ON_"):
+            try:
+                note = int(token[len("DRUM_ON_"):])
+            except ValueError:
+                print(f"Warning: Could not parse DRUM_ON token: {token}. Skipping.")
+                i += 1
+                continue
+            msg = Message("note_on", channel=9, note=note, velocity=current_velocity, time=accumulated_time_ticks)
+            track.append(msg)
+            accumulated_time_ticks = 0
+            i += 1
+
+        elif token.startswith("DRUM_OFF_"):
+            try:
+                note = int(token[len("DRUM_OFF_"):])
+            except ValueError:
+                print(f"Warning: Could not parse DRUM_OFF token: {token}. Skipping.")
+                i += 1
+                continue
+            msg = Message("note_off", channel=9, note=note, velocity=0, time=accumulated_time_ticks)
+            track.append(msg)
+            accumulated_time_ticks = 0
+            i += 1
         else:
             print(f"Warning: Unrecognized token: {token}. Skipping.")
             i += 1

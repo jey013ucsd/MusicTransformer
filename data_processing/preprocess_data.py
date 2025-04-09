@@ -9,6 +9,14 @@ import json
 import pickle
 from concurrent.futures import ProcessPoolExecutor, TimeoutError
 from tokenize_midi import tokenize_basic_vocab, tokenize_basic_vocab_velocity_bins, tokenize_multi_instr_vocab
+import yaml
+
+def load_config(path):
+    with open(path, 'r') as file:
+        config = yaml.safe_load(file)
+    return config
+
+config = load_config("config.yaml")
 
 ###### CLEAN DATA, SPLIT INTO TEST, TRAIN, AND VAL, THEN TOKENIZE INTO IDS #########
 
@@ -21,17 +29,15 @@ tokenized_test_path  = "datasets/tokenized/test"
 # Temporary directory for tokenized files before splitting:
 temp_tokenized_dir   = "datasets/tokenized/temp"
 
-TRAIN_RATIO = 0.80
-VAL_RATIO   = 0.10
-TEST_RATIO  = 0.10
-SAMPLE_SIZE = 178561
-BATCH_SIZE = 5000
+TRAIN_RATIO = config['Preprocessing']['TRAIN_RATIO']
+VAL_RATIO   = config['Preprocessing']['VAL_RATIO']
+TEST_RATIO  = config['Preprocessing']['TEST_RATIO']
+SAMPLE_SIZE = config['Preprocessing']['SAMPLE_SIZE']
+BATCH_SIZE = config['Preprocessing']['BATCH_SIZE']
+VOCAB = config['VOCAB']
+MAX_WORKERS = config['Preprocessing']['MAX_WORKERS']
+
 TOTAL_FILE_COUNT = len(glob.glob(os.path.join(source_dir, "*.mid"))) #178561
-
-VOCAB = "MULTI_STR" #select vocab [BASIC, BASIC_VELOCITY_BINS, MULTI_STR]
-
-MAX_WORKERS = 4 #depends on num cpu cores
-
 
 for d in [
     tokenized_test_path,

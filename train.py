@@ -11,34 +11,47 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import glob
 import re
+import yaml
+
+def load_config(path):
+    with open(path, 'r') as file:
+        config = yaml.safe_load(file)
+    return config
+
+config = load_config("config.yaml")
 
 
 # dataset paths
-EXPERIMENT_NAME = "v2_100epoch_half_dataset"
+EXPERIMENT_NAME = config['Training']['EXPERIMENT_NAME']
+VOCAB = config['VOCAB']
 
 TRAIN_DATA_PATH = "datasets/tokenized/train"
 VAL_DATA_PATH = "datasets/tokenized/val"
 TEST_DATA_PATH = "datasets/tokenized/test"
-VOCAB_PATH = "models/vocab/basic_vocab.json"
 CHECKPOINT_DIR = f"{EXPERIMENT_NAME}/checkpoints"
+
+if VOCAB == 'BASIC' or 'BASIC_VELOCITY_BINS':
+    VOCAB_PATH = "models/vocab/basic_vocab.json"
+if VOCAB == 'MULTI_STR':
+    VOCAB_PATH = "models/vocab/multi_instr_vocab.json"
 
 os.makedirs(EXPERIMENT_NAME, exist_ok=True)
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 
 # Training hyperparameters
-BATCH_SIZE = 4
-ACCUMULATION_STEPS = 2
-NUM_EPOCHS = 100
-LEARNING_RATE = 1e-5
+BATCH_SIZE = config['Training']['BATCH_SIZE']
+ACCUMULATION_STEPS = config['Training']['ACCUMULATION_STEPS']
+NUM_EPOCHS = config['Training']['NUM_EPOCHS']
+LEARNING_RATE = config['Training']['LEARNING_RATE']
 
 # Model hyperparameters
-BLOCK_SIZE = 1024
-N_EMBD = 1024
-N_HEAD = 8
-N_LAYER = 8
+BLOCK_SIZE =config['MODEL']['BLOCK_SIZE']
+N_EMBD = config['MODEL']['N_EMBD']
+N_HEAD = config['MODEL']['N_HEAD']
+N_LAYER = config['MODEL']['N_LAYER']
 MAX_SEQ_LENGTH = BLOCK_SIZE
-INITIAL_DROPOUT = 0.3
-FINAL_DROPOUT = 0.1
+INITIAL_DROPOUT = config['MODEL']['INITIAL_DROPOUT']
+FINAL_DROPOUT = config['MODEL']['FINAL_DROPOUT']
 
 # Device configuration
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -78,14 +91,24 @@ val_loader = DataLoader(
 )
 
 # setup model
-model = MusicTransformerv2(
-    vocab_size=VOCAB_SIZE,
-    n_embd=N_EMBD,
-    n_head=N_HEAD,
-    n_layer=N_LAYER,
-    dropout=INITIAL_DROPOUT,
-    max_len=MAX_SEQ_LENGTH
-).to(device)
+if config['MODEL']['MODEL'] == 'V2':
+    model = MusicTransformerv2(
+        vocab_size=VOCAB_SIZE,
+        n_embd=N_EMBD,
+        n_head=N_HEAD,
+        n_layer=N_LAYER,
+        dropout=INITIAL_DROPOUT,
+        max_len=MAX_SEQ_LENGTH
+    ).to(device)
+elif config['MODEL']['MODEL'] == 'V1':
+    model = MusicTransformer(
+        vocab_size=VOCAB_SIZE,
+        n_embd=N_EMBD,
+        n_head=N_HEAD,
+        n_layer=N_LAYER,
+        dropout=INITIAL_DROPOUT,
+        max_len=MAX_SEQ_LENGTH
+    ).to(device)
 
 loss_fn = nn.CrossEntropyLoss(ignore_index=vocab["TOKEN_PAD"])
 optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)

@@ -2,15 +2,16 @@ import json
 
 def build_vocab():
     """
-    Build a vocabulary for the Music Transformer using encoding proposed by Oore et al. (2018) with support for multiple instruments:
+    Build a vocabulary for the Music Transformer with multiinstrument support and specific drum tokens:
       - 128 NOTE_ON events
       - 128 NOTE_OFF events
       - 100 TIME_SHIFT events (10ms increments up to 1000ms)
-      - 32 VELOCITY events
-      - 128 INSTRUMENT change events (128 MIDI instruments)
+      - 16 VELOCITY events
+      - 128 INSTRUMENT change events
+      - 128 DRUM events
       - Special tokens: TOKEN_PAD
       
-    save to vocab.json
+    save to models/vocab/multi_instr_vocab.json
     """
     vocab = {}
     idx = 0
@@ -34,7 +35,7 @@ def build_vocab():
         idx += 1
 
     # VELOCITY tokens: 32 tokens representing expressive dynamics
-    for level in range(1, 33):
+    for level in range(1, 17):
         token = f"VELOCITY_{level}"
         vocab[token] = idx
         idx += 1
@@ -42,6 +43,18 @@ def build_vocab():
     # INSTRUMENT tokens (0-127 MIDI programs)
     for instr in range(128):
         token = f"INSTRUMENT_{instr}"
+        vocab[token] = idx
+        idx += 1
+
+    # DRUM_ON tokens (0-127 drum sets)
+    for note in range(128):  # or maybe a subset for common drum notes
+        token = f"DRUM_ON_{note}"
+        vocab[token] = idx
+        idx += 1
+
+    # DRUM_OFF tokens (0-127 drum sets)
+    for note in range(128):  # or maybe a subset for common drum notes
+        token = f"DRUM_OFF_{note}"
         vocab[token] = idx
         idx += 1
 
