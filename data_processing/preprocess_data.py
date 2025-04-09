@@ -30,6 +30,8 @@ TOTAL_FILE_COUNT = len(glob.glob(os.path.join(source_dir, "*.mid"))) #178561
 
 VOCAB = "MULTI_STR" #select vocab [BASIC, BASIC_VELOCITY_BINS, MULTI_STR]
 
+MAX_WORKERS = 4 #depends on num cpu cores
+
 
 for d in [
     tokenized_test_path,
@@ -42,18 +44,21 @@ for d in [
 
 
 tokenizer = tokenize_basic_vocab
+
 if VOCAB == "BASIC":
     print(f"USING TOKENIZER: {VOCAB}")
     tokenizer = tokenize_basic_vocab
+
 if VOCAB == "BASIC_VELOCITY_BINS":
     print(f"USING TOKENIZER: {VOCAB}")
     tokenizer = tokenize_basic_vocab_velocity_bins
+
 if VOCAB == "MULTI_STR":
     print(f"USING TOKENIZER: {VOCAB}")
     tokenizer = tokenize_multi_instr_vocab
 
 
-executor = ProcessPoolExecutor(max_workers=1)
+executor = ProcessPoolExecutor(max_workers=MAX_WORKERS)
 
 def tokenize_with_timeout(midi, timeout=10):
     """
