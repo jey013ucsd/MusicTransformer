@@ -268,7 +268,7 @@ def decode_to_midi_multi_instr_vocab(token_sequence, save_path, ticks_per_beat=4
     """
     Decodes tokens with multi_instr_vocab and converts to midi file
     """
-    DRUM_PROGRAMS = {0}
+    DRUM_PROGRAMS = set()
 
     mid = MidiFile(ticks_per_beat=ticks_per_beat)
     track = MidiTrack()
@@ -323,6 +323,8 @@ def decode_to_midi_multi_instr_vocab(token_sequence, save_path, ticks_per_beat=4
                 else:
                     channels[instr] = next_free_channel
                     next_free_channel += 1
+                    if next_free_channel == 9:
+                        next_free_channel += 1
                     if next_free_channel > 15:
                         next_free_channel = 15
             

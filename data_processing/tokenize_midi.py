@@ -164,10 +164,13 @@ def tokenize_multi_instr_vocab(mid):
                 new_sequence.append(token)
 
             else:
-                if curr_instr is not None:
-                    subseq[curr_instr].append(token)
+                if curr_instr is None:
+                    if token.startswith("DRUM_ON_") or token.startswith("DRUM_OFF_"):
+                        new_sequence.append(token)
+                    else:
+                        pass
                 else:
-                    pass
+                    subseq[curr_instr].append(token)
         if subseq:
             for instr in subseq:
                 if subseq[instr]:
