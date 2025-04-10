@@ -24,16 +24,7 @@
     attrib -r /s /d *.mid
     cd ../../..
 
-    Get-ChildItem "datasets\raw_midi\lmd_full_direct" -Recurse -File | Select-Object Name, @{Name="Owner";Expression={(Get-Acl $_.FullName).Owner}}
-
     takeown /F "datasets\raw_midi\lmd_full_direct" /R /D Y
-
-    $folder = "datasets\raw_midi\lmd_full_direct"
-    $acl = Get-Acl $folder
-    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule("$env:UserName", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
-    $acl.SetAccessRule($rule)
-    Set-Acl -Path $folder -AclObject $acl
-
     icacls "datasets\raw_midi\lmd_full_direct" /grant Everyone:F /T /C
 
     # Clean, tokenize, and split dataset

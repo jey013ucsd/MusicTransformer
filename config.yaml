@@ -22,18 +22,18 @@ MODEL:
   
 # Training parameters
 Training:
-  EXPERIMENT_NAME: "100epoch_full_dataset" # name of experiment save dir
+  EXPERIMENT_NAME: "300epoch_multi_instr_full_dataset" # name of experiment save dir
   BATCH_SIZE: 4
   ACCUMULATION_STEPS: 2
-  NUM_EPOCHS: 100
-  LEARNING_RATE: 1e-5
+  NUM_EPOCHS: 300
+  LEARNING_RATE: 0.00001
 
 # Inference Parameters:
 Inference:
   MODEL_NAME: "model_final.pt"
   OUTPUT_NAME: "paris_test_t0.85_tk355" # name of saved output file
   MAX_GENERATED_TOKENS: 2048  # maximum number of tokens to generate
-  TEMPERATURE: 0.85
+  TEMPERATURE: 1.0
   TOP_K: 0 # set to 0 to disable top k
 
   SEED_PROMPT: [53, 380, 65, 380, 280, 181, 193, 261, 60, 380, 273, 188, 292, 68, 380, 56, 380, 280, 196, 184, 261, 60, 380, 273, 188, 298, 55, 380, 67, 380, 280, 183, 195, 261, 60, 380, 273, 188, 292, 53, 380, 65, 380, 280, 181, 193, 261, 60, 380, 273, 188, 261, 72, 380, 84, 380, 60, 380, 273, 200, 212, 188, 292, 53, 380, 65, 380, 280, 181, 193, 261, 60, 380, 273, 188, 292, 68, 380, 56, 380, 280, 196, 184, 261, 60, 380, 273, 188, 298, 55, 380, 67, 380, 280, 183, 195, 261, 60, 380, 273, 188, 292, 65, 380, 53, 380, 280, 193, 181, 261, 60, 380, 273, 188, 261, 72, 380, 84, 380, 60, 380, 273, 200, 212, 188]
